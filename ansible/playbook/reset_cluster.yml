@@ -1,0 +1,90 @@
+---
+- name: Reset Kubernetes Cluster
+  hosts: all
+  become: yes
+  tasks:
+    - name: Run kubeadm reset
+      ansible.builtin.command: kubeadm reset -f
+      ignore_errors: yes
+
+    - name: Stop kubelet and containerd services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: stopped
+        enabled: no
+      loop:
+        - kubelet
+        - containerd
+      ignore_errors: yes
+
+    - name: Unhold Kubernetes packages
+      ansible.builtin.dpkg_selections:
+        name: "{{ item }}"
+        selection: install
+      loop:
+        - kubelet
+        - kubeadm
+        - kubectl
+
+    - name: Remove Kubernetes and container runtime packages
+      ansible.builtin.apt:
+        name:
+          - kubelet
+          - kubeadm
+          - kubectl
+          - docker.io
+          - containerd.io
+        state: absent
+        purge: yes
+        autoremove: yes
+      ignore_errors: yes
+
+    - name: Remove Kubernetes apt repository and key
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/kubernetes.list
+        - /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+    - name: Remove CNI configuration files
+      ansible.builtin.file:
+        path: /etc/cni/net.d
+        state: absent
+
+    - name: Remove containerd configuration
+      ansible.builtin.file:
+        path: /etc/containerd
+        state: absent
+
+    - name: Remove Kubernetes configuration files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/sysctl.d/k8s.conf
+        - /etc/modules-load.d/k8s.conf
+
+    - name: Reload sysctl
+      ansible.builtin.command: sysctl --system
+      ignore_errors: yes
+
+    - name: Re-enable swap in /etc/fstab
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^#(.*swap.*)$'
+        line: '\1'
+        backrefs: yes
+
+    - name: Turn on all swap devices
+      ansible.builtin.command: swapon -a
+      ignore_errors: yes
+
+- name: Clean up master node specific files
+  hosts: master-node
+  become: yes
+  tasks:
+    - name: Remove .kube directory from root user home
+      ansible.builtin.file:
+        path: /root/.kube
+        state: absent
