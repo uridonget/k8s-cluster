@@ -8,8 +8,12 @@
       register: flannel_check
       ignore_errors: yes
       changed_when: false
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
 
     - name: Apply Flannel CNI manifest
       ansible.builtin.command: kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
       register: flannel_install_output
       changed_when: flannel_install_output.rc == 0
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
