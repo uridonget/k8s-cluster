@@ -10,4 +10,8 @@ pip3 install ansible
 
 make
 
-# 끝!
+# Blog
+
+https://ddingddang.tistory.com/73
+
+https://ddingddang.tistory.com/74
